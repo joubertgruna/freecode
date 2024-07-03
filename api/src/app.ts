@@ -47,6 +47,7 @@ import {
   SENTRY_DSN
 } from './utils/env';
 import { isObjectID } from './utils/validation';
+import { signoutRoute } from './routes/signout';
 
 export type FastifyInstanceWithTypeProvider = FastifyInstance<
   RawServerDefault,
@@ -192,6 +193,7 @@ export const build = async (
   } else {
     void fastify.register(authRoutes);
   }
+  void fastify.register(signoutRoute);
   void fastify.register(challengeRoutes);
   void fastify.register(settingRoutes);
   void fastify.register(settingRedirectRoutes);

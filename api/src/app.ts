@@ -25,7 +25,7 @@ import mailer from './plugins/mailer';
 import redirectWithMessage from './plugins/redirect-with-message';
 import security from './plugins/security';
 import codeFlowAuth from './plugins/code-flow-auth';
-import { mobileAuth0Routes } from './routes/auth';
+import { authRoutes, mobileAuth0Routes } from './routes/auth';
 import { devAuthRoutes } from './routes/auth-dev';
 import {
   protectedCertificateRoutes,
@@ -47,6 +47,7 @@ import {
   SENTRY_DSN
 } from './utils/env';
 import { isObjectID } from './utils/validation';
+import { signoutRoute } from './routes/signout';
 
 export type FastifyInstanceWithTypeProvider = FastifyInstance<
   RawServerDefault,
@@ -183,9 +184,13 @@ export const build = async (
   void fastify.register(codeFlowAuth);
   void fastify.register(prismaPlugin);
   void fastify.register(mobileAuth0Routes);
+  // TODO: consolidate with LOCAL_MOCK_AUTH
   if (FCC_ENABLE_DEV_LOGIN_MODE) {
     void fastify.register(devAuthRoutes);
+  } else {
+    void fastify.register(authRoutes);
   }
+  void fastify.register(signoutRoute);
   void fastify.register(challengeRoutes);
   void fastify.register(settingRoutes);
   void fastify.register(settingRedirectRoutes);

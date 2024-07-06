@@ -1,4 +1,4 @@
-import fastifyCookie from '@fastify/cookie';
+import fastifyCookie, { type UnsignResult } from '@fastify/cookie';
 import { FastifyPluginCallback } from 'fastify';
 import fp from 'fastify-plugin';
 
@@ -7,6 +7,8 @@ import {
   COOKIE_SECRET,
   FREECODECAMP_NODE_ENV
 } from '../utils/env';
+
+export { type CookieSerializeOptions } from '@fastify/cookie';
 
 /**
  * Signs a cookie value by prefixing it with "s:" and using the COOKIE_SECRET.
@@ -23,7 +25,7 @@ export const sign = (value: string) =>
  * @param rawValue The signed cookie value.
  * @returns The unsigned cookie value.
  */
-export const unsign = (rawValue: string) => {
+export const unsign = (rawValue: string): UnsignResult => {
   const prefix = rawValue.slice(0, 2);
   if (prefix !== 's:') return { valid: false, renew: false, value: null };
 

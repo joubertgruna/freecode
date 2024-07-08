@@ -136,6 +136,11 @@ jobs:
 
       - uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427 # v4.1.4
 
+      - name: Unpack Client Artifact
+        run: |
+          tar -xf client-artifact.tar
+          rm client-artifact.tar
+
       # Cypress calls some pnpm scripts, so we need to install pnpm.
       - name: Setup pnpm
         uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d #v3.0.0

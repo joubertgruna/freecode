@@ -18,7 +18,7 @@ on:
 
 jobs:
   build-client:
-    name: Build Client (Container)
+    name: Build Client
     runs-on: ubuntu-22.04
     strategy:
       matrix:
@@ -28,37 +28,49 @@ jobs:
       - name: Checkout Source Files
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
-      - name: Create Image
-        run: |
-          docker build \
-            --build-arg HOME_LOCATION=http://localhost:8000 \
-            --build-arg API_LOCATION=http://localhost:3000 \
-            --build-arg FORUM_LOCATION=https://forum.freecodecamp.org \
-            --build-arg NEWS_LOCATION=https://www.freecodecamp.org/news \
-            --build-arg RADIO_LOCATION=https://coderadio.freecodecamp.org \
-            --build-arg CLIENT_LOCALE=english \
-            --build-arg CURRICULUM_LOCALE=english \
-            --build-arg ALGOLIA_APP_ID=app_id_from_algolia_dashboard \
-            --build-arg ALGOLIA_API_KEY=api_key_from_algolia_dashboard \
-            --build-arg STRIPE_PUBLIC_KEY=pk_from_stripe_dashboard \
-            --build-arg PAYPAL_CLIENT_ID=id_from_paypal_dashboard \
-            --build-arg PATREON_CLIENT_ID=id_from_patreon_dashboard \
-            --build-arg DEPLOYMENT_ENV=staging \
-            --build-arg SHOW_UPCOMING_CHANGES=false \
-            --build-arg SHOW_NEW_CURRICULUM=true \
-            --build-arg GROWTHBOOK_URI=api_URI_from_Growthbook_dashboard \
-            --build-arg FREECODECAMP_NODE_ENV=development \
-            -t fcc-client \
-            -f docker/web/Dockerfile .
+      - name: Checkout client-config
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          repository: freeCodeCamp/client-config
+          path: client-config
 
-      - name: Save Image
-        run: docker save fcc-client > client-artifact.tar
+      - name: Setup pnpm
+        uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d #v3.0.0
+        with:
+          version: 9
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+
+      - name: Set freeCodeCamp Environment Variables
+        run: cp sample.env .env
+
+      - name: Install and Build
+        run: |
+          pnpm install
+          pnpm run build
+
+      - name: Move serve.json to Public Folder
+        run: cp client-config/serve.json client/public/serve.json
+
+      # We tar them for performance reasons - uploading a lot of files is slow.
+      - name: Tar Files
+        run: tar -cf client-artifact.tar client/public
 
       - name: Upload Client Artifact
         uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
         with:
           name: client-artifact
           path: client-artifact.tar
+
+      - name: Upload Webpack Stats
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
+        with:
+          name: webpack-stats
+          path: client/public/stats.json
 
   build-api:
     name: Build Api (Container)
@@ -113,6 +125,14 @@ jobs:
         browsers: [chromium]
         node-version: [20.x]
 
+    services:
+      # We need mailhog to catch any emails the api tries to send.
+      mailhog:
+        image: mailhog/mailhog
+        ports:
+          - 1025:1025 # SMTP server (listens for emails)
+          - 8025:8025 # HTTP server (so we can make requests to the api)
+
     steps:
       - name: Set Action Environment Variables
         run: |
@@ -137,10 +157,8 @@ jobs:
       - name: Install Dependencies
         run: pnpm install
 
-      - name: Load Images
-        run: |
-          docker load < client-artifact/client-artifact.tar
-          docker load < api-artifact/api-artifact.tar
+      - name: Load Api Image
+        run: docker load < api-artifact/api-artifact.tar
 
       - name: Set freeCodeCamp Environment Variables (needed by api)
         run: |
@@ -150,9 +168,16 @@ jobs:
       - name: Install playwright dependencies
         run: npx playwright install --with-deps
 
+      - name: Install and Build
+        run: |
+          pnpm install
+          pnpm run create:shared
+          pnpm run build:curriculum
+
       - name: Start apps
         run: |
           docker compose up -d
+          pnpm run serve:client-ci
           sleep 10
           docker compose logs
 

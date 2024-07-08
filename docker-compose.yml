@@ -37,9 +37,4 @@ services:
     ports:
       # PORT is used by the new api, so we use the less generic API_PORT to
       # avoid conflicts.
-      - '${API_PORT:-3000}:3000'
-  client:
-    image: fcc-client
-    ports:
-      # Same principle as above (avoiding conflicts)
-      - '${CLIENT_PORT:-8000}:8000'
+      - '3000:3000'
